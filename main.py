@@ -5,23 +5,21 @@ from dataclasses import dataclass
 import time
 import sys
 
-
-# ── Configuration optimized for RTX 3060 12GB ──────────────────
 @dataclass
 class Config:
     data_file: str = "input.txt"
 
-    # Increased since you have more memory than expected
-    block_size: int = 256   # increased from 128
+    # Optimized for 4GB VRAM (RTX 3050 Laptop)
+    block_size: int = 192   # Slightly reduced from 256 to save memory
     vocab_size: int = None
-    embed_size: int = 384   # increased from 256
-    num_heads: int = 6      # increased from 4
-    num_layers: int = 6     # increased from 4
-    dropout: float = 0.1
+    embed_size: int = 320   # Balanced for 4GB
+    num_heads: int = 8      # Must be a divisor of embed_size (320 / 8 = 40)
+    num_layers: int = 6
+    dropout: float = 0.2    # Increased slightly to prevent overfitting on smaller models
 
-    batch_size: int = 32    # increased from 16
+    batch_size: int = 16    # Reduced from 32 to ensure we don't hit OOM during backward pass
     learning_rate: float = 3e-4
-    epochs: int = 7000      # increased from 5000
+    epochs: int = 5000
     train_split: float = 0.9
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,10 +31,12 @@ class Config:
 
         if self.device == "cuda":
             print(f"✓ Using GPU: {torch.cuda.get_device_name(0)}")
-            print(f"✓ GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024 ** 3:.2f} GB")
+            # Converting bytes to GB for display
+            total_mem = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+            print(f"✓ GPU Memory: {total_mem:.2f} GB")
             print(f"✓ CUDA Version: {torch.version.cuda}")
         else:
-            print("✗ CUDA not available, using CPU")
+            print("✗ CUDA is not available; using CPU instead.")
 
         print(f"✓ Model parameters:")
         print(f"  - Block size: {self.block_size}")
@@ -45,6 +45,9 @@ class Config:
         print(f"  - Heads: {self.num_heads}")
         print(f"  - Batch size: {self.batch_size}")
         print("=" * 60)
+
+
+        
 
 # ── Model Components ───────────────────────────────────────────
 class Head(nn.Module):
